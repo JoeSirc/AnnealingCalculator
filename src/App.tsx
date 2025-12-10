@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { GLASS_LIBRARY, calculateSchedule } from './lib/annealingLogic';
 import type { GlassType, ScheduleResult, ScheduleMode } from './lib/annealingLogic';
 import { AnnealingChart } from './components/AnnealingChart';
