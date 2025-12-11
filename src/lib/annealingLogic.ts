@@ -71,10 +71,13 @@ export interface ScheduleResult {
     digitry_instructions: string;
 }
 
+export type UnitSystem = 'metric' | 'imperial';
+
 export function calculateSchedule(
     glassType: GlassType,
-    thicknessMm: number,
+    thickness: number, // In current units (cm or inches)
     mode: ScheduleMode = "anneal_only",
+    units: UnitSystem = "imperial",
     customAnneal?: number,
     customStrain?: number,
     customProcessTemp?: number, // Override for fuse/cast temp
@@ -82,12 +85,21 @@ export function calculateSchedule(
 ): ScheduleResult {
     // 1. Get Glass Properties
     const props = GLASS_LIBRARY[glassType];
-    let annealTemp = props.anneal_temp;
-    let strainPoint = props.strain_point;
+    let annealTemp = props.anneal_temp; // Always F in library
+    let strainPoint = props.strain_point; // Always F in library
+
+    // Helper to convert input temp (potentially C) to F for internal calc if custom
+    const toF = (t: number) => units === 'metric' ? (t * 9 / 5) + 32 : t;
+    // Helper to convert output F to C
+    const toOutputTemp = (f: number) => units === 'metric' ? (f - 32) * 5 / 9 : f;
 
     if (glassType === "Custom") {
-        annealTemp = customAnneal ?? 900;
-        strainPoint = customStrain ?? 700;
+        annealTemp = customAnneal ? toF(customAnneal) : 900;
+        strainPoint = customStrain ? toF(customStrain) : 700;
+    } else {
+        // Custom overrides for standard glass
+        if (customAnneal) annealTemp = toF(customAnneal);
+        if (customStrain) strainPoint = toF(customStrain);
     }
 
     // Safe fallback
@@ -100,9 +112,9 @@ export function calculateSchedule(
 
     if (mode !== "anneal_only") {
         if (customProcessTemp) {
-            processTemp = customProcessTemp;
+            processTemp = toF(customProcessTemp);
         } else {
-            // Defaults
+            // Defaults (Library is in F)
             if (mode === "tack_fuse") processTemp = props.tack_fuse_temp ?? (annealTemp + 400);
             else if (mode === "full_fuse") processTemp = props.full_fuse_temp ?? (annealTemp + 550);
             else if (mode === "cast") processTemp = props.cast_temp ?? (annealTemp + 600);
@@ -114,12 +126,20 @@ export function calculateSchedule(
         } else {
             if (mode === "tack_fuse") processHoldMins = 10;
             else if (mode === "full_fuse") processHoldMins = 15;
-            else if (mode === "cast") processHoldMins = 30; // Longer for casting usually
+            else if (mode === "cast") processHoldMins = 30;
         }
     }
 
     // 2. Physics Logic (Annealing)
-    const thicknessInches = thicknessMm / 25.4;
+    // We need inches for the formula
+    let thicknessInches = 0;
+    if (units === 'metric') {
+        // Input is CM
+        thicknessInches = thickness / 2.54;
+    } else {
+        // Input is Inches
+        thicknessInches = thickness;
+    }
 
     // Soak Time Calculation (Anneal Soak)
     let annealSoakHours = 0;
@@ -140,26 +160,30 @@ export function calculateSchedule(
     if (rate2 > 400) rate2 = 400;
 
     // 3. Generate Schedule Points
-    const roomTemp = 150; // User requested 150 as safe unload temp
-    const rampToProcessRate = 400; // Moderate ramp to protect glass involved in fusing
+    // The previous code had `const roomTemp = 150;`. I will respect that as "Unload Temp".
+    const unloadTemp = 150;
 
+    // Rate Calculation Note:
+    // If we want points in output units, we should convert the temps FIRST, or convert the points at the end.
+    // Easier to calc in F then convert points.
+
+    const rampToProcessRate = 400; // F/hr
 
     const points: AnnealingSchedulePoint[] = [];
 
     let currentTime = 0;
 
     // Start
-    points.push({ time: currentTime, temp: roomTemp, label: "Start", segment_type: 'off' });
+    points.push({ time: currentTime, temp: toOutputTemp(unloadTemp), label: "Start", segment_type: 'off' });
 
-    // Firing Segments (if not anneal only)
+    // Firing Segments
     if (mode !== "anneal_only") {
         // Ramp to Process
-        // Duration = (Target - Start) / Rate
-        const timeToProcess = (processTemp - roomTemp) / rampToProcessRate;
+        const timeToProcess = (processTemp - unloadTemp) / rampToProcessRate;
         currentTime += timeToProcess;
         points.push({
             time: currentTime,
-            temp: processTemp,
+            temp: toOutputTemp(processTemp),
             label: `Reach ${mode === "cast" ? "Cast" : "Fuse"}`,
             segment_type: 'process'
         });
@@ -169,31 +193,27 @@ export function calculateSchedule(
         currentTime += processHoldHours;
         points.push({
             time: currentTime,
-            temp: processTemp,
+            temp: toOutputTemp(processTemp),
             label: "Process Complete",
             segment_type: 'process'
         });
 
         // Crash Cool to Anneal
-        // In reality, this takes time, but we model it as a segment
-        // Assume efficient cooling or flash venting: 
-        // For calculation, let's use a "Fast" rate like 1500F/hr or just minimal time
-        const timeToAnnealStart = (processTemp - annealTemp) / 1000; // 1000F/hr approximate crash
+        const timeToAnnealStart = (processTemp - annealTemp) / 1000;
         currentTime += timeToAnnealStart;
         points.push({
             time: currentTime,
-            temp: annealTemp,
+            temp: toOutputTemp(annealTemp),
             label: "Cool to Anneal",
             segment_type: 'cool'
         });
     } else {
-        // Ramp directly to Anneal (Anneal Only)
-        // Usually 500F/hr or Full
-        const timeToSoak = (annealTemp - roomTemp) / 500;
+        // Heat directly to Anneal
+        const timeToSoak = (annealTemp - unloadTemp) / 500;
         currentTime += timeToSoak;
         points.push({
             time: currentTime,
-            temp: annealTemp,
+            temp: toOutputTemp(annealTemp),
             label: "Reach Soak",
             segment_type: 'heat'
         });
@@ -203,7 +223,7 @@ export function calculateSchedule(
     currentTime += annealSoakHours;
     points.push({
         time: currentTime,
-        temp: annealTemp,
+        temp: toOutputTemp(annealTemp),
         label: "Anneal Soak",
         segment_type: 'soak'
     });
@@ -213,89 +233,83 @@ export function calculateSchedule(
     currentTime += timeAnnealToStrain;
     points.push({
         time: currentTime,
-        temp: strainPoint,
+        temp: toOutputTemp(strainPoint),
         label: "Strain Point",
         segment_type: 'cool'
     });
 
-    // Cool to Room
-    const timeToCool = (strainPoint - roomTemp) / rate2;
+    // Cool to Room (Unload)
+    const timeToCool = (strainPoint - unloadTemp) / rate2;
     currentTime += timeToCool;
     points.push({
         time: currentTime,
-        temp: roomTemp,
+        temp: toOutputTemp(unloadTemp),
         label: "Finished",
         segment_type: 'cool'
     });
 
 
     // 4. Generate Instructions
+    const tempUnit = units === 'metric' ? "°C" : "°F";
+    const rateUnit = units === 'metric' ? "°C/hr" : "°F/hr";
+
+    // Helper for outputting rates/temps in correct unit
+    // Rates must be converted: C_rate = F_rate * 5/9
+    const toRate = (r: number) => units === 'metric' ? r * 5 / 9 : r;
 
     // Paragon Sentry
-    let paragon = `Make sure to verify these against your specific kiln manual.\n\n`;
+    let paragon = `Make sure to verify these against your specific kiln manual.\n`;
+    paragon += `ALL TEMPS IN ${tempUnit}, RATES IN ${rateUnit}\n\n`;
+
     let segCount = 1;
     let sc = 0;
 
     if (mode !== "anneal_only") {
         sc = segCount++;
         paragon += `SEG ${sc} (Ramp to Process):\n` +
-            `  RA${sc} : ${rampToProcessRate}\n` +
-            `  °F${sc} : ${Math.round(processTemp)}\n` +
+            `  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n` +
+            `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(processTemp))}\n` +
             `  HLD${sc}: ${generateTimeStr(Math.round(processHoldMins))}\n\n`;
 
         sc = segCount++;
         paragon += `SEG ${sc} (Cool to Anneal):\n` +
             `  RA${sc} : FULL (or 9999)\n` +
-            `  °F${sc} : ${Math.round(annealTemp)}\n` +
+            `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n` +
             `  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
     } else {
         sc = segCount++;
         paragon += `SEG ${sc} (Ramp to Soak):\n` +
             `  RA${sc} : FULL (or 9999)\n` +
-            `  °F${sc} : ${Math.round(annealTemp)}\n` +
+            `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n` +
             `  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
     }
 
-    // Remaining Paragon Segments (Annealing Cool Down)
+    // Remaining Paragon Segments
     sc = segCount++;
     paragon += `SEG ${sc} (Anneal to Strain):\n` +
-        `  RA${sc} : ${Math.round(rate1)}\n` +
-        `  °F${sc} : ${Math.round(strainPoint)}\n` +
+        `  RA${sc} : ${Math.round(toRate(rate1))}\n` +
+        `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(strainPoint))}\n` +
         `  HLD${sc}: 00:00\n\n`;
 
     sc = segCount++;
     paragon += `SEG ${sc} (Strain to Room):\n` +
-        `  RA${sc} : ${Math.round(rate2)}\n` +
-        `  °F${sc} : ${Math.round(roomTemp)}\n` +
+        `  RA${sc} : ${Math.round(toRate(rate2))}\n` +
+        `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(unloadTemp))}\n` +
         `  HLD${sc}: 00:00`;
 
 
     // Digitry GB4 (Cumulative Time Model)
-    // Structure: STEP N -> TEMP X, TIME Y (Cumulative Minutes)
-    // We traverse our points.
-    // Point 0 is start (0, 80).
-    // Subsequent points define the steps.
-
-    let digitry = `NOTE: Time is CUMULATIVE from start.\n\n`;
+    let digitry = `NOTE: Time is CUMULATIVE from start.\n`;
+    digitry += `TEMPS IN ${tempUnit}\n\n`;
     let digitryStep = 1;
 
-
-    // If firing, we have specific steps. 
-    // If anneal only, specific steps.
-    // Actually, we can just iterate the generated points (excluding start).
-
-    // Filter points to exclude index 0
     const schedulePoints = points.slice(1);
 
-    // Digitry usually needs integer minutes
     schedulePoints.forEach((p) => {
         const pMins = Math.round(p.time * 60);
-        // Sometimes points might be effectively same time (crash cool), ensure strictly increasing or equal?
-        // Digitry handles same time as instant? Or requires +1 min? 
-        // For "Hold as repeat step", temp is same, time increases.
 
         digitry += `STEP ${digitryStep++}: ${p.label}\n` +
-            `  TEMP: ${Math.round(p.temp)}°F\n` +
+            `  TEMP: ${Math.round(p.temp)}${tempUnit}\n` +
             `  TIME: ${generateTimeStr(pMins)}\n\n`;
     });
 

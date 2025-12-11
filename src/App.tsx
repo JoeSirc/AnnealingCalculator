@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { GLASS_LIBRARY, calculateSchedule } from './lib/annealingLogic';
-import type { GlassType, ScheduleResult, ScheduleMode } from './lib/annealingLogic';
+import type { GlassType, ScheduleResult, ScheduleMode, UnitSystem } from './lib/annealingLogic';
 import { AnnealingChart } from './components/AnnealingChart';
-import { Activity, Flame, ThermometerSnowflake, Settings } from 'lucide-react';
+import { Activity, Flame, ThermometerSnowflake, Settings, Ruler, RotateCcw } from 'lucide-react';
 
 function App() {
   const [glassType, setGlassType] = useState<GlassType>("Bullseye (COE 90)");
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("anneal_only");
-  const [thickness, setThickness] = useState<string>("6");
+  const [thickness, setThickness] = useState<string>("0.25"); // Default to inch-like start
+  const [units, setUnits] = useState<UnitSystem>("imperial");
 
   // Custom Overrides
   const [customAnneal, setCustomAnneal] = useState<string>("");
@@ -19,8 +20,47 @@ function App() {
 
   const [result, setResult] = useState<ScheduleResult | null>(null);
 
-  // Auto-fill Process Defaults when Glass or Mode changes
-  // optional: leave blank to imply "Default"
+  const toggleUnits = () => {
+    const newUnits = units === 'imperial' ? 'metric' : 'imperial';
+    setUnits(newUnits);
+
+    // Convert Thickness
+    if (thickness) {
+      const val = parseFloat(thickness);
+      if (!isNaN(val)) {
+        if (newUnits === 'metric') {
+          // Inch -> Cm
+          setThickness((val * 2.54).toFixed(2));
+        } else {
+          // Cm -> Inch
+          setThickness((val / 2.54).toFixed(3));
+        }
+      }
+    }
+
+    // Helper for C <-> F conversion
+    const toC = (f: number) => (f - 32) * 5 / 9;
+    const toF = (c: number) => (c * 9 / 5) + 32;
+
+    const convertTempField = (valStr: string) => {
+      if (!valStr) return "";
+      const val = parseFloat(valStr);
+      if (isNaN(val)) return valStr;
+
+      if (newUnits === 'metric') {
+        // F -> C
+        return Math.round(toC(val)).toString();
+      } else {
+        // C -> F
+        return Math.round(toF(val)).toString();
+      }
+    };
+
+    setCustomAnneal(convertTempField(customAnneal));
+    setCustomStrain(convertTempField(customStrain));
+    setProcessTemp(convertTempField(processTemp));
+  };
+
 
   const handleCalculate = () => {
     const thickVal = parseFloat(thickness);
@@ -56,6 +96,7 @@ function App() {
       glassType,
       thickVal,
       scheduleMode,
+      units,
       cAnneal,
       cStrain,
       cProcessTemp,
@@ -99,14 +140,27 @@ function App() {
           </div>
 
           <div>
-            <label>Thickness (mm)</label>
-            <input
-              type="number"
-              value={thickness}
-              onChange={(e) => setThickness(e.target.value)}
-              placeholder="e.g. 6"
-              min="0.1"
-            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+              <label style={{ margin: 0 }}>Thickness ({units === 'metric' ? 'cm' : 'in'})</label>
+              <button
+                onClick={toggleUnits}
+                className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded flex items-center gap-1 transition-colors"
+                title="Switch Units"
+              >
+                <RotateCcw size={12} />
+                {units === 'imperial' ? 'Switch to Metric' : 'Switch to Imperial'}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                value={thickness}
+                onChange={(e) => setThickness(e.target.value)}
+                placeholder={units === 'metric' ? "e.g. 0.6" : "e.g. 0.25"}
+                min="0.01"
+                step="0.01"
+              />
+            </div>
           </div>
 
         </div>
@@ -120,7 +174,7 @@ function App() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div>
-                <label>Process Temp (°F)</label>
+                <label>Process Temp ({units === 'metric' ? '°C' : '°F'})</label>
                 <input
                   type="number"
                   value={processTemp}
@@ -152,21 +206,29 @@ function App() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div>
-                <label>Anneal Temp (°F)</label>
+                <label>Anneal Temp ({units === 'metric' ? '°C' : '°F'})</label>
                 <input
                   type="number"
                   value={customAnneal}
                   onChange={(e) => setCustomAnneal(e.target.value)}
-                  placeholder={glassType !== "Custom" ? `${GLASS_LIBRARY[glassType].anneal_temp}` : ""}
+                  placeholder={glassType !== "Custom" ?
+                    (units === 'metric'
+                      ? `${Math.round((GLASS_LIBRARY[glassType].anneal_temp! - 32) * 5 / 9)}`
+                      : `${GLASS_LIBRARY[glassType].anneal_temp}`)
+                    : ""}
                 />
               </div>
               <div>
-                <label>Strain Point (°F)</label>
+                <label>Strain Point ({units === 'metric' ? '°C' : '°F'})</label>
                 <input
                   type="number"
                   value={customStrain}
                   onChange={(e) => setCustomStrain(e.target.value)}
-                  placeholder={glassType !== "Custom" ? `${GLASS_LIBRARY[glassType].strain_point}` : ""}
+                  placeholder={glassType !== "Custom" ?
+                    (units === 'metric'
+                      ? `${Math.round((GLASS_LIBRARY[glassType].strain_point! - 32) * 5 / 9)}`
+                      : `${GLASS_LIBRARY[glassType].strain_point}`)
+                    : ""}
                 />
               </div>
             </div>
@@ -188,7 +250,7 @@ function App() {
               <Activity className="text-blue-400" size={24} />
               <h2 style={{ margin: 0 }}>Firing Profile</h2>
             </div>
-            <AnnealingChart points={result.points} />
+            <AnnealingChart points={result.points} units={units} />
           </div>
 
           {/* Paragon Output */}

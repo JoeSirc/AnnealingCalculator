@@ -4,9 +4,10 @@ import type { AnnealingSchedulePoint } from '../lib/annealingLogic';
 
 interface AnnealingChartProps {
     points: AnnealingSchedulePoint[];
+    units: 'metric' | 'imperial';
 }
 
-export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points }) => {
+export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units }) => {
     // Dynamic Trace Generation Logic
     // We split the points into traces based on color.
     // Heat/Soak/Process = Red
@@ -101,7 +102,7 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points }) => {
                         zerolinecolor: '#475569'
                     },
                     yaxis: {
-                        title: { text: 'Temperature (°F)' },
+                        title: { text: `Temperature (°${units === 'metric' ? 'C' : 'F'})` },
                         gridcolor: '#334155',
                         zerolinecolor: '#475569'
                     },
