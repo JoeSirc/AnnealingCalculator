@@ -187,17 +187,19 @@ function App() {
               <button
                 onClick={toggleUnits}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
+                  background: units === 'imperial' ? 'rgba(96, 165, 250, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+                  border: units === 'imperial' ? '1px solid rgba(96, 165, 250, 0.3)' : '1px solid rgba(248, 113, 113, 0.3)',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
                   width: 'auto',
-                  fontSize: '0.7rem',
+                  fontSize: '0.75rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  color: units === 'imperial' ? '#60a5fa' : '#f87171', // Tailwind blue-400 : red-400
-                  marginLeft: 'auto'
+                  color: units === 'imperial' ? '#60a5fa' : '#f87171',
+                  marginLeft: 'auto',
+                  transition: 'all 0.2s',
                 }}
                 title={`Switch to ${units === 'imperial' ? 'Metric' : 'Imperial'}`}
               >
