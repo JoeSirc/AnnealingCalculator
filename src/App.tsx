@@ -253,6 +253,7 @@ ${result.digitry_instructions}`;
               onChange={(e) => setScheduleMode(e.target.value as ScheduleMode)}
             >
               <option value="anneal_only">Anneal Only</option>
+              <option value="slump">Slump</option>
               <option value="tack_fuse">Tack Fuse</option>
               <option value="full_fuse">Full Fuse</option>
               <option value="cast">Cast</option>

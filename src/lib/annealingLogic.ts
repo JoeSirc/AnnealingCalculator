@@ -6,11 +6,12 @@ export type GlassType =
     | "Satake (COE 110-120)"
     | "Custom";
 
-export type ScheduleMode = "anneal_only" | "tack_fuse" | "full_fuse" | "cast";
+export type ScheduleMode = "anneal_only" | "tack_fuse" | "full_fuse" | "cast" | "slump";
 
 export interface GlassProperties {
     anneal_temp: number | null;
     strain_point: number | null;
+    slump_temp?: number;
     tack_fuse_temp?: number;
     full_fuse_temp?: number;
     cast_temp?: number;
@@ -20,6 +21,7 @@ export const GLASS_LIBRARY: Record<GlassType, GlassProperties> = {
     "Bullseye (COE 90)": {
         anneal_temp: 900,
         strain_point: 700,
+        slump_temp: 1225,
         tack_fuse_temp: 1350,
         full_fuse_temp: 1490,
         cast_temp: 1525
@@ -27,6 +29,7 @@ export const GLASS_LIBRARY: Record<GlassType, GlassProperties> = {
     "Oceanside / Spectrum (COE 96)": {
         anneal_temp: 950,
         strain_point: 800,
+        slump_temp: 1225,
         tack_fuse_temp: 1350,
         full_fuse_temp: 1465,
         cast_temp: 1500
@@ -34,20 +37,23 @@ export const GLASS_LIBRARY: Record<GlassType, GlassProperties> = {
     "Effetre / Moretti (COE 104)": {
         anneal_temp: 940,
         strain_point: 840,
+        slump_temp: 1200,
         tack_fuse_temp: 1350,
         full_fuse_temp: 1450,
-        cast_temp: 1480 // Estimated
+        cast_temp: 1480
     },
     "Simax / Pyrex (Borosilicate COE 33)": {
         anneal_temp: 1050,
         strain_point: 950,
-        tack_fuse_temp: 1600, // Very high, flame usually
-        full_fuse_temp: 2000, // Very high
-        cast_temp: 2200 // Requires high temp kiln
+        slump_temp: 1300,
+        tack_fuse_temp: 1600,
+        full_fuse_temp: 2000,
+        cast_temp: 2200
     },
     "Satake (COE 110-120)": {
         anneal_temp: 890,
         strain_point: 750,
+        slump_temp: 1150,
         tack_fuse_temp: 1300,
         full_fuse_temp: 1400,
         cast_temp: 1450
@@ -83,8 +89,8 @@ export function calculateSchedule(
     customProcessTemp?: number, // Override for fuse/cast temp
     customProcessHoldMins?: number, // Override for fuse/cast hold
     customProcessRamp?: number, // Override for fuse/cast ramp rate
-    moldDryHours?: number, // Optional Mold Dry Time (hours) @ 250F
-    customMoldDryTemp?: number // Optional Mold Dry Temp (default 250F)
+    moldDryHours?: number, // Optional Mold Dry Time (hours)
+    moldDryTemp?: number // Optional Mold Dry Temp (default 250F / 121C)
 ): ScheduleResult {
     // 1. Get Glass Properties
     const props = GLASS_LIBRARY[glassType];
@@ -118,7 +124,8 @@ export function calculateSchedule(
             processTemp = toF(customProcessTemp);
         } else {
             // Defaults (Library is in F)
-            if (mode === "tack_fuse") processTemp = props.tack_fuse_temp ?? (annealTemp + 400);
+            if (mode === "slump") processTemp = props.slump_temp ?? (annealTemp + 325);
+            else if (mode === "tack_fuse") processTemp = props.tack_fuse_temp ?? (annealTemp + 400);
             else if (mode === "full_fuse") processTemp = props.full_fuse_temp ?? (annealTemp + 550);
             else if (mode === "cast") processTemp = props.cast_temp ?? (annealTemp + 600);
         }
@@ -127,7 +134,8 @@ export function calculateSchedule(
         if (customProcessHoldMins !== undefined) {
             processHoldMins = customProcessHoldMins;
         } else {
-            if (mode === "tack_fuse") processHoldMins = 10;
+            if (mode === "slump") processHoldMins = 20;
+            else if (mode === "tack_fuse") processHoldMins = 10;
             else if (mode === "full_fuse") processHoldMins = 15;
             else if (mode === "cast") processHoldMins = 30;
         }
@@ -228,10 +236,16 @@ export function calculateSchedule(
         // Ramp to Process
         const timeToProcess = (processTemp - currentStartTemp) / rampToProcessRate;
         currentTime += timeToProcess;
+        let reachLabel = "Process Reach";
+        if (mode === 'cast') reachLabel = "Reach Cast";
+        else if (mode === 'full_fuse') reachLabel = "Reach Full Fuse";
+        else if (mode === 'tack_fuse') reachLabel = "Reach Tack Fuse";
+        else if (mode === 'slump') reachLabel = "Reach Slump";
+
         points.push({
             time: currentTime,
             temp: toOutputTemp(processTemp),
-            label: `Reach ${mode === "cast" ? "Cast" : "Fuse"}`,
+            label: reachLabel,
             segment_type: 'process'
         });
 
