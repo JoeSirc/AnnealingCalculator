@@ -186,12 +186,23 @@ function App() {
               <label style={{ margin: 0 }}>Thickness ({units === 'metric' ? 'cm' : 'in'})</label>
               <button
                 onClick={toggleUnits}
-                className={`text-[10px] flex items-center gap-1 transition-colors bg-transparent border-none cursor-pointer p-0 ${units === 'imperial' ? 'text-blue-400 hover:text-blue-300' : 'text-red-400 hover:text-red-300'
-                  }`}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  width: 'auto',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: units === 'imperial' ? '#60a5fa' : '#f87171', // Tailwind blue-400 : red-400
+                  marginLeft: 'auto'
+                }}
                 title={`Switch to ${units === 'imperial' ? 'Metric' : 'Imperial'}`}
               >
-                <RotateCcw size={10} />
-                {units === 'imperial' ? 'Imperial' : 'Metric'}
+                <RotateCcw size={12} />
+                <span style={{ fontWeight: 600 }}>{units === 'imperial' ? 'Imperial' : 'Metric'}</span>
               </button>
             </div>
             <div className="relative">
