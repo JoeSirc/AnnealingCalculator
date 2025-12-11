@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GLASS_LIBRARY, calculateSchedule } from './lib/annealingLogic';
 import type { GlassType, ScheduleResult, ScheduleMode, UnitSystem } from './lib/annealingLogic';
 import { AnnealingChart } from './components/AnnealingChart';
-import { Activity, Flame, ThermometerSnowflake, Settings, Ruler, RotateCcw } from 'lucide-react';
+import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw } from 'lucide-react';
 
 function App() {
   const [glassType, setGlassType] = useState<GlassType>("Bullseye (COE 90)");
@@ -24,41 +24,83 @@ function App() {
     const newUnits = units === 'imperial' ? 'metric' : 'imperial';
     setUnits(newUnits);
 
-    // Convert Thickness
-    if (thickness) {
-      const val = parseFloat(thickness);
-      if (!isNaN(val)) {
-        if (newUnits === 'metric') {
-          // Inch -> Cm
-          setThickness((val * 2.54).toFixed(2));
-        } else {
-          // Cm -> Inch
-          setThickness((val / 2.54).toFixed(3));
-        }
+    // 1. Convert Thickness State
+    let newThickness = thickness;
+    const val = parseFloat(thickness);
+    if (!isNaN(val)) {
+      if (newUnits === 'metric') {
+        // Inch -> Cm
+        newThickness = (val * 2.54).toFixed(2);
+      } else {
+        // Cm -> Inch
+        newThickness = (val / 2.54).toFixed(3);
       }
+      setThickness(newThickness);
     }
 
-    // Helper for C <-> F conversion
+    // 2. Helper for C <-> F conversion
     const toC = (f: number) => (f - 32) * 5 / 9;
     const toF = (c: number) => (c * 9 / 5) + 32;
 
     const convertTempField = (valStr: string) => {
       if (!valStr) return "";
-      const val = parseFloat(valStr);
-      if (isNaN(val)) return valStr;
+      const v = parseFloat(valStr);
+      if (isNaN(v)) return valStr;
 
       if (newUnits === 'metric') {
-        // F -> C
-        return Math.round(toC(val)).toString();
+        return Math.round(toC(v)).toString();
       } else {
-        // C -> F
-        return Math.round(toF(val)).toString();
+        return Math.round(toF(v)).toString();
       }
     };
 
-    setCustomAnneal(convertTempField(customAnneal));
-    setCustomStrain(convertTempField(customStrain));
-    setProcessTemp(convertTempField(processTemp));
+    // 3. Convert Overrides State
+    const newCustomAnneal = convertTempField(customAnneal);
+    const newCustomStrain = convertTempField(customStrain);
+    const newProcessTemp = convertTempField(processTemp);
+
+    setCustomAnneal(newCustomAnneal);
+    setCustomStrain(newCustomStrain);
+    setProcessTemp(newProcessTemp);
+
+
+    // 4. Re-Calculate Result immediately if we have a result
+    // We must use the NEW values, not the state variables (which are stale in this closure)
+    if (result) {
+      const thickVal = parseFloat(newThickness);
+      if (isNaN(thickVal)) return;
+
+      let cAnneal = undefined;
+      let cStrain = undefined;
+      let cProcessTemp = undefined;
+      let cProcessHold = undefined; // Time is time, no conversion needed
+
+      // Re-construct the logic from handleCalculate but with new values
+      if (glassType === "Custom") {
+        cAnneal = parseFloat(newCustomAnneal);
+        cStrain = parseFloat(newCustomStrain);
+      } else {
+        if (newCustomAnneal) cAnneal = parseFloat(newCustomAnneal);
+        if (newCustomStrain) cStrain = parseFloat(newCustomStrain);
+      }
+
+      if (scheduleMode !== "anneal_only") {
+        if (newProcessTemp) cProcessTemp = parseFloat(newProcessTemp);
+        if (processHold) cProcessHold = parseFloat(processHold);
+      }
+
+      const res = calculateSchedule(
+        glassType,
+        thickVal,
+        scheduleMode,
+        newUnits,
+        cAnneal,
+        cStrain,
+        cProcessTemp,
+        cProcessHold
+      );
+      setResult(res);
+    }
   };
 
 
@@ -144,11 +186,12 @@ function App() {
               <label style={{ margin: 0 }}>Thickness ({units === 'metric' ? 'cm' : 'in'})</label>
               <button
                 onClick={toggleUnits}
-                className="text-xs px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded flex items-center gap-1 transition-colors"
-                title="Switch Units"
+                className={`text-[10px] flex items-center gap-1 transition-colors bg-transparent border-none cursor-pointer p-0 ${units === 'imperial' ? 'text-blue-400 hover:text-blue-300' : 'text-red-400 hover:text-red-300'
+                  }`}
+                title={`Switch to ${units === 'imperial' ? 'Metric' : 'Imperial'}`}
               >
-                <RotateCcw size={12} />
-                {units === 'imperial' ? 'Switch to Metric' : 'Switch to Imperial'}
+                <RotateCcw size={10} />
+                {units === 'imperial' ? 'Imperial' : 'Metric'}
               </button>
             </div>
             <div className="relative">
