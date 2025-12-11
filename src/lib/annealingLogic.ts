@@ -313,17 +313,17 @@ export function calculateSchedule(
 
     if (mode !== "anneal_only") {
 
-        let currentStartTemp = unloadTemp;
-
         if (mode === 'cast' && moldDryHours && moldDryHours > 0) {
-            const moldDryTemp = 250;
+            let targetMoldDryTemp = 250;
+            if (customMoldDryTemp) {
+                targetMoldDryTemp = toF(customMoldDryTemp);
+            }
+
             sc = segCount++;
             paragon += `SEG ${sc} (Mold Dry):\n` +
                 `  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n` +
-                `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(moldDryTemp))}\n` +
+                `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(targetMoldDryTemp))}\n` +
                 `  HLD${sc}: ${generateTimeStr(Math.round(moldDryHours * 60))}\n\n`;
-
-            currentStartTemp = moldDryTemp;
         }
 
         sc = segCount++;
