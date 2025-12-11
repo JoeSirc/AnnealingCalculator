@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GLASS_LIBRARY, calculateSchedule } from './lib/annealingLogic';
 import type { GlassType, ScheduleResult, ScheduleMode, UnitSystem } from './lib/annealingLogic';
 import { AnnealingChart } from './components/AnnealingChart';
-import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw } from 'lucide-react';
+import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw, Share2 } from 'lucide-react';
 
 function App() {
   const [glassType, setGlassType] = useState<GlassType>("Bullseye (COE 90)");
@@ -17,8 +17,10 @@ function App() {
   // Clean Process Overrides
   const [processTemp, setProcessTemp] = useState<string>("");
   const [processHold, setProcessHold] = useState<string>("");
+  const [processRamp, setProcessRamp] = useState<string>("");
 
   const [result, setResult] = useState<ScheduleResult | null>(null);
+  const [chartVersion, setChartVersion] = useState(0);
 
   const toggleUnits = () => {
     const newUnits = units === 'imperial' ? 'metric' : 'imperial';
@@ -59,9 +61,26 @@ function App() {
     const newCustomStrain = convertTempField(customStrain);
     const newProcessTemp = convertTempField(processTemp);
 
+    // Rate Conversion (Delta only)
+    const convertRateField = (valStr: string) => {
+      if (!valStr) return "";
+      const v = parseFloat(valStr);
+      if (isNaN(v)) return valStr;
+
+      if (newUnits === 'metric') {
+        // F/hr -> C/hr
+        return Math.round(v * 5 / 9).toString();
+      } else {
+        // C/hr -> F/hr
+        return Math.round(v * 9 / 5).toString();
+      }
+    };
+    const newProcessRamp = convertRateField(processRamp);
+
     setCustomAnneal(newCustomAnneal);
     setCustomStrain(newCustomStrain);
     setProcessTemp(newProcessTemp);
+    setProcessRamp(newProcessRamp);
 
 
     // 4. Re-Calculate Result immediately if we have a result
@@ -73,7 +92,8 @@ function App() {
       let cAnneal = undefined;
       let cStrain = undefined;
       let cProcessTemp = undefined;
-      let cProcessHold = undefined; // Time is time, no conversion needed
+      let cProcessHold = undefined;
+      let cProcessRamp = undefined; // Time is time, no conversion needed
 
       // Re-construct the logic from handleCalculate but with new values
       if (glassType === "Custom") {
@@ -87,6 +107,7 @@ function App() {
       if (scheduleMode !== "anneal_only") {
         if (newProcessTemp) cProcessTemp = parseFloat(newProcessTemp);
         if (processHold) cProcessHold = parseFloat(processHold);
+        if (newProcessRamp) cProcessRamp = parseFloat(newProcessRamp);
       }
 
       const res = calculateSchedule(
@@ -97,9 +118,11 @@ function App() {
         cAnneal,
         cStrain,
         cProcessTemp,
-        cProcessHold
+        cProcessHold,
+        cProcessRamp
       );
       setResult(res);
+      setChartVersion(v => v + 1);
     }
   };
 
@@ -115,6 +138,7 @@ function App() {
     let cStrain = undefined;
     let cProcessTemp = undefined;
     let cProcessHold = undefined;
+    let cProcessRamp = undefined;
 
     if (glassType === "Custom") {
       cAnneal = parseFloat(customAnneal);
@@ -132,6 +156,7 @@ function App() {
     if (scheduleMode !== "anneal_only") {
       if (processTemp) cProcessTemp = parseFloat(processTemp);
       if (processHold) cProcessHold = parseFloat(processHold);
+      if (processRamp) cProcessRamp = parseFloat(processRamp);
     }
 
     const res = calculateSchedule(
@@ -142,9 +167,40 @@ function App() {
       cAnneal,
       cStrain,
       cProcessTemp,
-      cProcessHold
+      cProcessHold,
+      cProcessRamp
     );
     setResult(res);
+    setChartVersion(v => v + 1);
+  };
+
+  const handleShare = async () => {
+    if (!result) return;
+
+    const text = `Annealing Schedule for ${glassType} (${thickness} ${units === 'metric' ? 'cm' : 'in'})
+
+PARAGON SENTRY:
+${result.paragon_instructions}
+
+DIGITRY GB4/5:
+${result.digitry_instructions}`;
+
+    const shareData = {
+      title: 'Glass Annealing Schedule',
+      text: text,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(text);
+        alert("Schedule copied to clipboard!");
+      }
+    } catch (err) {
+      console.error("Error sharing:", err);
+    }
   };
 
   return (
@@ -228,7 +284,7 @@ function App() {
               <Settings className="text-gray-400" size={18} />
               <h3 style={{ margin: 0, fontSize: '1rem' }}>Process Settings</h3>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div>
                 <label>Process Temp ({units === 'metric' ? '°C' : '°F'})</label>
                 <input
@@ -237,17 +293,27 @@ function App() {
                   onChange={(e) => setProcessTemp(e.target.value)}
                   placeholder="Default (Auto)"
                 />
-                <small style={{ color: '#888' }}>Leave empty for default</small>
+                <small style={{ color: '#888' }}>Empty = Auto</small>
               </div>
               <div>
-                <label>Hold Time (Minutes)</label>
+                <label>Hold Time (Mins)</label>
                 <input
                   type="number"
                   value={processHold}
                   onChange={(e) => setProcessHold(e.target.value)}
                   placeholder="Default (Auto)"
                 />
-                <small style={{ color: '#888' }}>Leave empty for default</small>
+                <small style={{ color: '#888' }}>Empty = Auto</small>
+              </div>
+              <div>
+                <label>Ramp ({units === 'metric' ? '°C/hr' : '°F/hr'})</label>
+                <input
+                  type="number"
+                  value={processRamp}
+                  onChange={(e) => setProcessRamp(e.target.value)}
+                  placeholder="Default (Auto)"
+                />
+                <small style={{ color: '#888' }}>Empty = Auto</small>
               </div>
             </div>
           </div>
@@ -306,7 +372,7 @@ function App() {
               <Activity className="text-blue-400" size={24} />
               <h2 style={{ margin: 0 }}>Firing Profile</h2>
             </div>
-            <AnnealingChart points={result.points} units={units} />
+            <AnnealingChart key={chartVersion} points={result.points} units={units} />
           </div>
 
           {/* Paragon Output */}
@@ -329,6 +395,23 @@ function App() {
             <pre className="instruction-text">
               {result.digitry_instructions}
             </pre>
+          </div>
+          {/* Share Button */}
+          <div className="full-width" style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={handleShare}
+              style={{
+                background: '#334155', // Slate 700
+                maxWidth: '300px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <Share2 size={18} />
+              Share Schedule
+            </button>
           </div>
         </div>
       )}

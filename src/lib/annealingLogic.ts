@@ -81,7 +81,8 @@ export function calculateSchedule(
     customAnneal?: number,
     customStrain?: number,
     customProcessTemp?: number, // Override for fuse/cast temp
-    customProcessHoldMins?: number // Override for fuse/cast hold
+    customProcessHoldMins?: number, // Override for fuse/cast hold
+    customProcessRamp?: number // Override for fuse/cast ramp rate
 ): ScheduleResult {
     // 1. Get Glass Properties
     const props = GLASS_LIBRARY[glassType];
@@ -167,7 +168,23 @@ export function calculateSchedule(
     // If we want points in output units, we should convert the temps FIRST, or convert the points at the end.
     // Easier to calc in F then convert points.
 
-    const rampToProcessRate = 400; // F/hr
+    let rampToProcessRate = 400; // Default F/hr
+
+    // Dynamic Ramp Calculation based on thickness
+    if (thicknessInches < 0.25) rampToProcessRate = 400;
+    else if (thicknessInches < 0.50) rampToProcessRate = 300;
+    else if (thicknessInches < 1.00) rampToProcessRate = 150;
+    else rampToProcessRate = 100;
+
+    if (customProcessRamp) {
+        // If units are metric, the input is C/hr. Convert to F/hr.
+        // Rate conversion: F_rate = C_rate * 9/5
+        if (units === 'metric') {
+            rampToProcessRate = customProcessRamp * 9 / 5;
+        } else {
+            rampToProcessRate = customProcessRamp;
+        }
+    }
 
     const points: AnnealingSchedulePoint[] = [];
 
@@ -208,8 +225,8 @@ export function calculateSchedule(
             segment_type: 'cool'
         });
     } else {
-        // Heat directly to Anneal
-        const timeToSoak = (annealTemp - unloadTemp) / 500;
+        // Heat directly to Anneal in 10 minutes
+        const timeToSoak = 10 / 60;
         currentTime += timeToSoak;
         points.push({
             time: currentTime,
@@ -277,9 +294,16 @@ export function calculateSchedule(
             `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n` +
             `  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
     } else {
+        // Calc rate for 10 mins (10/60 hours)
+        // Rate = DeltaTemp / TimeHours
+        // DeltaTemp in F is (annealTemp - unloadTemp)
+        // Convert that Rate to Output Unit
+        const deltaTempF = annealTemp - unloadTemp;
+        const rateF = deltaTempF / (10 / 60);
+
         sc = segCount++;
         paragon += `SEG ${sc} (Ramp to Soak):\n` +
-            `  RA${sc} : FULL (or 9999)\n` +
+            `  RA${sc} : ${Math.round(toRate(rateF))}\n` +
             `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n` +
             `  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
     }
