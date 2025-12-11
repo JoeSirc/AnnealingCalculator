@@ -18,6 +18,8 @@ function App() {
   const [processTemp, setProcessTemp] = useState<string>("");
   const [processHold, setProcessHold] = useState<string>("");
   const [processRamp, setProcessRamp] = useState<string>("");
+  const [moldDryHours, setMoldDryHours] = useState<string>("");
+  const [moldDryTemp, setMoldDryTemp] = useState<string>("");
 
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [chartVersion, setChartVersion] = useState(0);
@@ -60,6 +62,7 @@ function App() {
     const newCustomAnneal = convertTempField(customAnneal);
     const newCustomStrain = convertTempField(customStrain);
     const newProcessTemp = convertTempField(processTemp);
+    const newMoldDryTemp = convertTempField(moldDryTemp);
 
     // Rate Conversion (Delta only)
     const convertRateField = (valStr: string) => {
@@ -81,6 +84,7 @@ function App() {
     setCustomStrain(newCustomStrain);
     setProcessTemp(newProcessTemp);
     setProcessRamp(newProcessRamp);
+    setMoldDryTemp(newMoldDryTemp);
 
 
     // 4. Re-Calculate Result immediately if we have a result
@@ -94,6 +98,8 @@ function App() {
       let cProcessTemp = undefined;
       let cProcessHold = undefined;
       let cProcessRamp = undefined; // Time is time, no conversion needed
+      let cMoldDryHours = undefined;
+      let cMoldDryTemp = undefined;
 
       // Re-construct the logic from handleCalculate but with new values
       if (glassType === "Custom") {
@@ -108,6 +114,11 @@ function App() {
         if (newProcessTemp) cProcessTemp = parseFloat(newProcessTemp);
         if (processHold) cProcessHold = parseFloat(processHold);
         if (newProcessRamp) cProcessRamp = parseFloat(newProcessRamp);
+
+        if (scheduleMode === 'cast' && moldDryHours) {
+          cMoldDryHours = parseFloat(moldDryHours);
+          if (newMoldDryTemp) cMoldDryTemp = parseFloat(newMoldDryTemp);
+        }
       }
 
       const res = calculateSchedule(
@@ -119,7 +130,9 @@ function App() {
         cStrain,
         cProcessTemp,
         cProcessHold,
-        cProcessRamp
+        cProcessRamp,
+        cMoldDryHours,
+        cMoldDryTemp
       );
       setResult(res);
       setChartVersion(v => v + 1);
@@ -139,6 +152,8 @@ function App() {
     let cProcessTemp = undefined;
     let cProcessHold = undefined;
     let cProcessRamp = undefined;
+    let cMoldDryHours = undefined;
+    let cMoldDryTemp = undefined;
 
     if (glassType === "Custom") {
       cAnneal = parseFloat(customAnneal);
@@ -157,6 +172,11 @@ function App() {
       if (processTemp) cProcessTemp = parseFloat(processTemp);
       if (processHold) cProcessHold = parseFloat(processHold);
       if (processRamp) cProcessRamp = parseFloat(processRamp);
+
+      if (scheduleMode === 'cast' && moldDryHours) {
+        cMoldDryHours = parseFloat(moldDryHours);
+        if (moldDryTemp) cMoldDryTemp = parseFloat(moldDryTemp);
+      }
     }
 
     const res = calculateSchedule(
@@ -168,7 +188,9 @@ function App() {
       cStrain,
       cProcessTemp,
       cProcessHold,
-      cProcessRamp
+      cProcessRamp,
+      cMoldDryHours,
+      cMoldDryTemp
     );
     setResult(res);
     setChartVersion(v => v + 1);
@@ -305,6 +327,31 @@ ${result.digitry_instructions}`;
                 />
                 <small style={{ color: '#888' }}>Empty = Auto</small>
               </div>
+              {scheduleMode === 'cast' && (
+                <>
+                  <div>
+                    <label>Mold Dry (Hours)</label>
+                    <input
+                      type="number"
+                      value={moldDryHours}
+                      onChange={(e) => setMoldDryHours(e.target.value)}
+                      placeholder="None"
+                      max="72"
+                    />
+                    <small style={{ color: '#888' }}>At Dry Temp</small>
+                  </div>
+                  <div>
+                    <label>Dry Temp ({units === 'metric' ? '°C' : '°F'})</label>
+                    <input
+                      type="number"
+                      value={moldDryTemp}
+                      onChange={(e) => setMoldDryTemp(e.target.value)}
+                      placeholder={units === 'metric' ? "121" : "250"}
+                    />
+                    <small style={{ color: '#888' }}>Default = {units === 'metric' ? "121" : "250"}</small>
+                  </div>
+                </>
+              )}
               <div>
                 <label>Ramp ({units === 'metric' ? '°C/hr' : '°F/hr'})</label>
                 <input

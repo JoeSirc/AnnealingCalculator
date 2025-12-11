@@ -82,7 +82,9 @@ export function calculateSchedule(
     customStrain?: number,
     customProcessTemp?: number, // Override for fuse/cast temp
     customProcessHoldMins?: number, // Override for fuse/cast hold
-    customProcessRamp?: number // Override for fuse/cast ramp rate
+    customProcessRamp?: number, // Override for fuse/cast ramp rate
+    moldDryHours?: number, // Optional Mold Dry Time (hours) @ 250F
+    customMoldDryTemp?: number // Optional Mold Dry Temp (default 250F)
 ): ScheduleResult {
     // 1. Get Glass Properties
     const props = GLASS_LIBRARY[glassType];
@@ -195,8 +197,36 @@ export function calculateSchedule(
 
     // Firing Segments
     if (mode !== "anneal_only") {
+        let currentStartTemp = unloadTemp;
+
+        // Optional Mold Dry Step (Cast only, usually)
+        if (mode === 'cast' && moldDryHours && moldDryHours > 0) {
+            const moldDryTemp = 250; // F
+
+            // Ramp to Mold Dry Temp
+            const timeToDry = (moldDryTemp - currentStartTemp) / rampToProcessRate;
+            currentTime += timeToDry;
+            points.push({
+                time: currentTime,
+                temp: toOutputTemp(moldDryTemp),
+                label: "Mold Dry Reach",
+                segment_type: 'heat'
+            });
+
+            // Hold Mold Dry
+            currentTime += moldDryHours;
+            points.push({
+                time: currentTime,
+                temp: toOutputTemp(moldDryTemp),
+                label: "Mold Dry Hold",
+                segment_type: 'process'
+            });
+
+            currentStartTemp = moldDryTemp;
+        }
+
         // Ramp to Process
-        const timeToProcess = (processTemp - unloadTemp) / rampToProcessRate;
+        const timeToProcess = (processTemp - currentStartTemp) / rampToProcessRate;
         currentTime += timeToProcess;
         points.push({
             time: currentTime,
@@ -282,6 +312,20 @@ export function calculateSchedule(
     let sc = 0;
 
     if (mode !== "anneal_only") {
+
+        let currentStartTemp = unloadTemp;
+
+        if (mode === 'cast' && moldDryHours && moldDryHours > 0) {
+            const moldDryTemp = 250;
+            sc = segCount++;
+            paragon += `SEG ${sc} (Mold Dry):\n` +
+                `  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n` +
+                `  ${tempUnit}${sc} : ${Math.round(toOutputTemp(moldDryTemp))}\n` +
+                `  HLD${sc}: ${generateTimeStr(Math.round(moldDryHours * 60))}\n\n`;
+
+            currentStartTemp = moldDryTemp;
+        }
+
         sc = segCount++;
         paragon += `SEG ${sc} (Ramp to Process):\n` +
             `  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n` +
