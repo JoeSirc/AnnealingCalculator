@@ -329,8 +329,8 @@ export function calculateSchedule(
 
         if (mode === 'cast' && moldDryHours && moldDryHours > 0) {
             let targetMoldDryTemp = 250;
-            if (customMoldDryTemp) {
-                targetMoldDryTemp = toF(customMoldDryTemp);
+            if (moldDryTemp) {
+                targetMoldDryTemp = toF(moldDryTemp);
             }
 
             sc = segCount++;
