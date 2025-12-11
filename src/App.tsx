@@ -307,28 +307,18 @@ ${result.digitry_instructions}`;
               <h3 style={{ margin: 0, fontSize: '1rem' }}>Process Settings</h3>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-              <div>
-                <label>Process Temp ({units === 'metric' ? '°C' : '°F'})</label>
-                <input
-                  type="number"
-                  value={processTemp}
-                  onChange={(e) => setProcessTemp(e.target.value)}
-                  placeholder="Default (Auto)"
-                />
-                <small style={{ color: '#888' }}>Empty = Auto</small>
-              </div>
-              <div>
-                <label>Hold Time (Mins)</label>
-                <input
-                  type="number"
-                  value={processHold}
-                  onChange={(e) => setProcessHold(e.target.value)}
-                  placeholder="Default (Auto)"
-                />
-                <small style={{ color: '#888' }}>Empty = Auto</small>
-              </div>
               {scheduleMode === 'cast' && (
                 <>
+                  <div>
+                    <label>Dry Temp ({units === 'metric' ? '°C' : '°F'})</label>
+                    <input
+                      type="number"
+                      value={moldDryTemp}
+                      onChange={(e) => setMoldDryTemp(e.target.value)}
+                      placeholder={units === 'metric' ? "121" : "250"}
+                    />
+                    <small style={{ color: '#888' }}>Default = {units === 'metric' ? "121" : "250"}</small>
+                  </div>
                   <div>
                     <label>Mold Dry (Hours)</label>
                     <input
@@ -340,24 +330,37 @@ ${result.digitry_instructions}`;
                     />
                     <small style={{ color: '#888' }}>At Dry Temp</small>
                   </div>
-                  <div>
-                    <label>Dry Temp ({units === 'metric' ? '°C' : '°F'})</label>
-                    <input
-                      type="number"
-                      value={moldDryTemp}
-                      onChange={(e) => setMoldDryTemp(e.target.value)}
-                      placeholder={units === 'metric' ? "121" : "250"}
-                    />
-                    <small style={{ color: '#888' }}>Default = {units === 'metric' ? "121" : "250"}</small>
-                  </div>
                 </>
               )}
+
               <div>
                 <label>Ramp ({units === 'metric' ? '°C/hr' : '°F/hr'})</label>
                 <input
                   type="number"
                   value={processRamp}
                   onChange={(e) => setProcessRamp(e.target.value)}
+                  placeholder="Default (Auto)"
+                />
+                <small style={{ color: '#888' }}>Empty = Auto</small>
+              </div>
+
+              <div>
+                <label>Process Temp ({units === 'metric' ? '°C' : '°F'})</label>
+                <input
+                  type="number"
+                  value={processTemp}
+                  onChange={(e) => setProcessTemp(e.target.value)}
+                  placeholder="Default (Auto)"
+                />
+                <small style={{ color: '#888' }}>Empty = Auto</small>
+              </div>
+
+              <div>
+                <label>Hold Time (Mins)</label>
+                <input
+                  type="number"
+                  value={processHold}
+                  onChange={(e) => setProcessHold(e.target.value)}
                   placeholder="Default (Auto)"
                 />
                 <small style={{ color: '#888' }}>Empty = Auto</small>
