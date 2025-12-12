@@ -344,9 +344,9 @@ ${result.digitry_instructions}`;
               onChange={(e) => setConservativeness(e.target.value as Conservativeness)}
               style={{ marginTop: '0.5rem' }}
             >
-              <option value="fast">Fast / Economy (1.0x)</option>
-              <option value="standard">Standard (1.5x)</option>
-              <option value="cautious">Cautious / Museum (2.0x)</option>
+              <option value="fast">Fast / Economy (0.75x)</option>
+              <option value="standard">Standard (1.0x)</option>
+              <option value="cautious">Cautious / Museum (1.5x)</option>
             </select>
           </div>
 
