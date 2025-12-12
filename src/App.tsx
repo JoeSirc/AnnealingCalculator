@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { GLASS_LIBRARY, calculateSchedule } from './lib/annealingLogic';
-import type { GlassType, ScheduleResult, ScheduleMode, UnitSystem } from './lib/annealingLogic';
+import type { GlassType, ScheduleResult, ScheduleMode, UnitSystem, ShapeFactor, Conservativeness } from './lib/annealingLogic';
 import { AnnealingChart } from './components/AnnealingChart';
-import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw, Share2 } from 'lucide-react';
+import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw, Share2, Info } from 'lucide-react';
 
 function App() {
   const [glassType, setGlassType] = useState<GlassType>("Bullseye (COE 90)");
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("anneal_only");
   const [thickness, setThickness] = useState<string>("0.25"); // Default to inch-like start
   const [units, setUnits] = useState<UnitSystem>("imperial");
+
+  // Physics Controls
+  const [shape, setShape] = useState<ShapeFactor>("slab");
+  const [conservativeness, setConservativeness] = useState<Conservativeness>("fast");
 
   // Custom Overrides
   const [customAnneal, setCustomAnneal] = useState<string>("");
@@ -126,6 +130,8 @@ function App() {
         thickVal,
         scheduleMode,
         newUnits,
+        shape,
+        conservativeness,
         cAnneal,
         cStrain,
         cProcessTemp,
@@ -184,6 +190,8 @@ function App() {
       thickVal,
       scheduleMode,
       units,
+      shape,
+      conservativeness,
       cAnneal,
       cStrain,
       cProcessTemp,
@@ -296,6 +304,50 @@ ${result.digitry_instructions}`;
                 step="0.01"
               />
             </div>
+          </div>
+
+        </div>
+
+        {/* Physics Controls Row */}
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+
+          {/* Shape Logic (Only relevant for casting usually, or thick slabs. We can enable for all for "Effective Thickness" logic) */}
+          {/* User asked for "section to the casting mode that clarifys if its a slab, 3d, or a sphere". */}
+          {/* Let's show it always but maybe highlight it for cast? User said "add a section to the casting mode". */}
+          {/* OK, I will show it ONLY if scheduleMode == 'cast' OR maybe just always because it affects cooling? */}
+          {/* User text: "We will need to add a section to the casting mode". I will enable it for Casting. */}
+
+          {scheduleMode === 'cast' && (
+            <div style={{ flex: 1, minWidth: '200px' }}>
+              <label>Form / Shape</label>
+              <select
+                value={shape}
+                onChange={(e) => setShape(e.target.value as ShapeFactor)}
+              >
+                <option value="slab">Flat Slab (1.0x)</option>
+                <option value="uneven">Uneven / Tack (1.5x)</option>
+                <option value="hollow_deep">Hollow / Deep / 3D (2.0x)</option>
+              </select>
+            </div>
+          )}
+
+          {/* Aggressiveness Selector */}
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ margin: 0 }}>Safety Profile</label>
+              <div title="Economy = Fast (1.0x baseline). Standard = Safer (1.5x). Museum = Very Slow (2.0x)." style={{ cursor: 'help' }}>
+                <Info size={14} className="text-gray-500" />
+              </div>
+            </div>
+            <select
+              value={conservativeness}
+              onChange={(e) => setConservativeness(e.target.value as Conservativeness)}
+              style={{ marginTop: '0.5rem' }}
+            >
+              <option value="fast">Fast / Economy (1.0x)</option>
+              <option value="standard">Standard (1.5x)</option>
+              <option value="cautious">Cautious / Museum (2.0x)</option>
+            </select>
           </div>
 
         </div>
@@ -466,6 +518,12 @@ ${result.digitry_instructions}`;
           </div>
         </div>
       )}
+
+      <footer className="disclaimer">
+        <p>All times and temps are approximate. Calculations are subject to change.</p>
+        <p>Ramp/cool rates vary between kilns.</p>
+        <p style={{ marginTop: '0.5rem' }}>Free and opensource. For educational purposes.</p>
+      </footer>
     </div>
   );
 }
