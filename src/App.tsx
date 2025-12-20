@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { GLASS_LIBRARY, calculateSchedule } from './lib/annealingLogic';
 import type { GlassType, ScheduleResult, ScheduleMode, UnitSystem, ShapeFactor, Conservativeness } from './lib/annealingLogic';
 import { AnnealingChart } from './components/AnnealingChart';
-import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw, Share2, Info } from 'lucide-react';
+import { Activity, Flame, ThermometerSnowflake, Settings, RotateCcw, Share2, Info, X } from 'lucide-react';
 
 function App() {
   const [glassType, setGlassType] = useState<GlassType>("Bullseye (COE 90)");
@@ -25,6 +25,8 @@ function App() {
   const [processRamp, setProcessRamp] = useState<string>("");
   const [moldDryHours, setMoldDryHours] = useState<string>("");
   const [moldDryTemp, setMoldDryTemp] = useState<string>("");
+  const [showInfo, setShowInfo] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [chartVersion, setChartVersion] = useState(0);
@@ -550,8 +552,111 @@ ${result.digitry_instructions}`;
       <footer className="disclaimer">
         <p>All times and temps are approximate. Calculations are subject to change.</p>
         <p>Ramp/cool rates vary between kilns.</p>
-        <p style={{ marginTop: '0.5rem' }}>Free and opensource. For educational purposes.</p>
+        <div className="footer-links">
+          <a className="footer-link" onClick={() => setShowInfo(true)}>Information</a>
+          <a className="footer-link" onClick={() => setShowAbout(true)}>About</a>
+        </div>
+        <p style={{ marginTop: '1rem' }}>Free and opensource. For educational purposes.</p>
       </footer>
+
+      {showInfo && (
+        <div className="modal-overlay" onClick={() => setShowInfo(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowInfo(false)}>
+              <X size={20} />
+            </button>
+            <h2 style={{ color: '#60a5fa', marginBottom: '1.5rem' }}>Annealing & The TNM Model</h2>
+            <div style={{ color: '#cbd5e1', lineHeight: '1.7' }}>
+              <p>
+                <strong>Annealing</strong> is the process of slow, controlled cooling of glass to relieve internal stresses.
+                When glass is cooled too quickly, the exterior solidifies while the interior remains contracted,
+                creating potential energy that can lead to catastrophic failure (cracking) immediately or years later.
+              </p>
+
+              <div style={{ margin: '2rem 0', display: 'grid', gap: '1.5rem' }}>
+                <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                  <img src="/images/annealing_process.jpg" alt="The Glass Annealing Process" style={{ width: '100%', borderRadius: '0.5rem' }} />
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#64748b', textAlign: 'center' }}>
+                    Chart created with Nano Banana Pro
+                  </p>
+                </div>
+              </div>
+
+              <h3 style={{ marginTop: '2rem', color: '#e2e8f0' }}>The Tool-Narayanaswamy-Moynihan (TNM) Equation</h3>
+              <p>
+                Modern glass science relies on the <strong>TNM model</strong> to predict how the "fictive temperature"
+                (the structural state of the glass) relaxes over time. This calculator applies these physical
+                principles to determine the ideal soak times and multi-stage cooling rates based on your glass choice
+                and thickness.
+              </p>
+
+              <div style={{ margin: '2rem 0' }}>
+                <div style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(148, 163, 184, 0.1)' }}>
+                  <img src="/images/tnm_equation.jpg" alt="Understanding the TNM Equation" style={{ width: '100%', borderRadius: '0.5rem' }} />
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#64748b', textAlign: 'center' }}>
+                    Chart created with Nano Banana Pro
+                  </p>
+                </div>
+              </div>
+
+              <div className="info-grid">
+                <div className="bio-card">
+                  <h4>Arthur Q. Tool</h4>
+                  <p>Pioneered the concept of <strong>Fictive Temperature (Tf)</strong>. He established that the properties of glass are tied to the temperature at which its liquid structure was "frozen" in time.</p>
+                </div>
+                <div className="bio-card">
+                  <h4>O.S. Narayanaswamy</h4>
+                  <p>Developed the multi-parameter model for structural relaxation, accounting for the complex <strong>memory effect</strong> and nonlinearity of how glass reaches equilibrium.</p>
+                </div>
+                <div className="bio-card">
+                  <h4>Cornelius Moynihan</h4>
+                  <p>Refined the mathematical kinetics of the glass transition, enabling numerical solutions that allow modern calculators to predict stress relaxation with high precision.</p>
+                </div>
+              </div>
+
+              <div className="source-list">
+                <p><strong>Sources & Further Reading:</strong></p>
+                <ul style={{ paddingLeft: '1.2rem', margin: '0.5rem 0' }}>
+                  <li>Tool, A. Q. (1946). "Relation between Inelastic Deformability and Fictive Temperature of Glass." Journal of the American Ceramic Society.</li>
+                  <li>Narayanaswamy, O. S. (1971). "A Model of Structural Relaxation in Glass." Journal of the American Ceramic Society.</li>
+                  <li>Moynihan, C. T., et al. (1976). "Structural Relaxation in Vitreous Systems." Annals of the New York Academy of Sciences.</li>
+                  <li>Corning Museum of Glass - Science of Annealing Series.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAbout && (
+        <div className="modal-overlay" onClick={() => setShowAbout(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowAbout(false)}>
+              <X size={20} />
+            </button>
+            <h2 style={{ color: '#c084fc', marginBottom: '1.5rem' }}>About the Project</h2>
+            <div style={{ color: '#cbd5e1', lineHeight: '1.7' }}>
+              <p>
+                Hello! I'm <strong>Joe Sircoulomb</strong>, a professional glass artist and data scientist
+                currently studying Information Management at the <strong>University of Washington</strong>.
+              </p>
+              <p style={{ marginTop: '1rem' }}>
+                I began building this utility after my first quarter of data studies. My goal is to merge
+                scientific rigor with the creative exploration by providing artists with high-precision
+                tools that were once only available in research labs.
+              </p>
+              <p style={{ marginTop: '1rem' }}>
+                At its core, this project aims to enrich the glass art community
+                while serving as a practical application of data science and physics-based modeling.
+              </p>
+              <div style={{ marginTop: '2rem', display: 'flex', gap: '0.5rem', alignItems: 'center', opacity: 0.8 }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#60a5fa' }}></div>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>Built with React, TypeScript, and Google Antigravity.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
