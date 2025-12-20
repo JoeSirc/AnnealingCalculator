@@ -21,6 +21,7 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
 
     const getLabel = (type: string) => {
         if (type === 'cool') return 'Cooling';
+        if (type === 'process_hold') return 'Indefinite Hold';
         return 'Heating / Soaking';
     }
 
@@ -29,6 +30,8 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
     if (points.length > 0) {
         let currentX = [points[0].time];
         let currentY = [points[0].temp];
+        let currentIndices = [0];
+
         // Determine initial type from first segment (point 1) if exists, else default
         let currentType = points.length > 1 ? points[1].segment_type : 'off';
         let currentColor = getColor(currentType);
@@ -36,6 +39,32 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
 
         // Track which legends we've shown to avoid duplicates
         const legendsShown = new Set<string>();
+
+        const pushTrace = (x: number[], y: number[], indices: number[], color: string, name: string) => {
+            const isIndefiniteTrace = (name === 'Indefinite Hold');
+
+            // Calculate marker opacity to hide overlaps
+            // If we are NOT the indefinite trace, hide our marker if it lands on an indefinite hold point
+            const markerOpacities = indices.map(idx => {
+                if (isIndefiniteTrace) return 1;
+                // If the point acts as a junction for the hold, hide it so the Yellow point shows cleanly
+                if (points[idx].segment_type === 'process_hold') return 0;
+                return 1;
+            });
+
+            traces.push({
+                x: x,
+                y: y,
+                type: 'scatter',
+                mode: isIndefiniteTrace ? 'markers' : 'lines+markers',
+                name: name,
+                line: { color: color, width: 3 },
+                marker: { color: color, size: 8, opacity: markerOpacities },
+                showlegend: !legendsShown.has(name),
+                legendgroup: name
+            });
+            legendsShown.add(name);
+        };
 
         for (let i = 0; i < points.length - 1; i++) {
             const nextPoint = points[i + 1];
@@ -46,43 +75,28 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
                 // Continue trace
                 currentX.push(nextPoint.time);
                 currentY.push(nextPoint.temp);
+                currentIndices.push(i + 1);
             } else {
                 // End current trace
-                traces.push({
-                    x: currentX,
-                    y: currentY,
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    name: currentName,
-                    line: { color: currentColor, width: 3 },
-                    marker: { color: currentColor },
-                    showlegend: !legendsShown.has(currentName),
-                    legendgroup: currentName
-                });
-                legendsShown.add(currentName);
+                pushTrace(currentX, currentY, currentIndices, currentColor, currentName);
 
                 // Start new trace
-                // IMPORTANT: New trace must overlap start point to be continuous
                 currentColor = nextColor;
                 currentName = getLabel(nextType);
                 currentX = [points[i].time, nextPoint.time];
                 currentY = [points[i].temp, nextPoint.temp];
-                // But wait, points[i] is the END of previous segment.
-                // It is the START of this new segment.
+                currentIndices = [i, i + 1];
             }
         }
 
         // Push final trace
-        traces.push({
-            x: currentX,
-            y: currentY,
-            type: 'scatter',
-            mode: 'lines+markers',
-            name: currentName,
-            line: { color: currentColor, width: 3 },
-            marker: { color: currentColor },
-            showlegend: !legendsShown.has(currentName),
-            legendgroup: currentName
+        pushTrace(currentX, currentY, currentIndices, currentColor, currentName);
+
+        // Sort traces: Indefinite Hold (Yellow) MUST be last to render on top
+        traces.sort((a, b) => {
+            if (a.name === 'Indefinite Hold') return 1;
+            if (b.name === 'Indefinite Hold') return -1;
+            return 0;
         });
     }
 
