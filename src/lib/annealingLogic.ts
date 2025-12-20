@@ -279,7 +279,9 @@ export function calculateSchedule(
         // Hold
         currentTime += (processHoldMins / 60);
         const holdLabel = processHoldIndefinite ? "Process Hold (Indefinite)" : "Process Complete";
-        points.push({ time: currentTime, temp: toOutputTemp(processTemp), label: holdLabel, segment_type: 'process_hold' }); // New specific type for Yellow
+        // Only use 'process_hold' (Yellow) if it IS indefinite. Otherwise standard process (Red).
+        const holdType = processHoldIndefinite ? 'process_hold' : 'process';
+        points.push({ time: currentTime, temp: toOutputTemp(processTemp), label: holdLabel, segment_type: holdType });
 
         // Crash Cool to Anneal
         // In physics model, crash cool is limited by "thermal shock of the kiln" usually lol, but glass can break if cooled too fast on surface. 
@@ -333,8 +335,9 @@ export function calculateSchedule(
 
         sc = segCount++;
         sc = segCount++;
-        const holdStr = processHoldIndefinite ? "HOLD" : generateTimeStr(Math.round(processHoldMins));
-        const holdNote = processHoldIndefinite ? " (INDEFINITE HOLD)" : "";
+        // Paragon Sentry 2.0 uses 99.59 for indefinite hold.
+        const holdStr = processHoldIndefinite ? "99.59" : generateTimeStr(Math.round(processHoldMins));
+        const holdNote = processHoldIndefinite ? " (INDEFINITE)" : "";
         paragon += `SEG ${sc} (Process):\n  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(processTemp))}\n  HLD${sc}: ${holdStr}${holdNote}\n\n`;
 
         sc = segCount++;
@@ -361,7 +364,8 @@ export function calculateSchedule(
         const pMins = Math.round(p.time * 60);
         let timeStr = generateTimeStr(pMins);
         if (p.label?.includes("Indefinite")) {
-            timeStr += " (HOLD)";
+            // Digitry uses HHHH for indefinite hold
+            timeStr = "HHHH";
         }
         digitry += `STEP ${digitryStep++}: ${p.label}\n  TEMP: ${Math.round(p.temp)}${tempUnit}\n  TIME: ${timeStr}\n\n`;
     });
