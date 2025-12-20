@@ -421,7 +421,7 @@ ${result.digitry_instructions}`;
                       onChange={(e) => setProcessHoldIndefinite(e.target.checked)}
                       style={{ width: 'auto', margin: 0 }}
                     />
-                    Visual Check
+                    Indefinite
                   </label>
                 </div>
                 {!processHoldIndefinite ? (
