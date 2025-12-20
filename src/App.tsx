@@ -642,8 +642,8 @@ ${result.digitry_instructions}`;
               </p>
               <p style={{ marginTop: '1rem' }}>
                 I began building this utility after my first quarter of data studies. My goal is to merge
-                scientific rigor with the creative exploration by providing artists with high-precision
-                tools that were once only available in research labs.
+                scientific rigor with creative exploration by providing artists with high-precision
+                tools that were once only accessible in research labs.
               </p>
               <p style={{ marginTop: '1rem' }}>
                 At its core, this project aims to enrich the glass art community
