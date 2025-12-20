@@ -15,7 +15,8 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
 
     const getColor = (type: string) => {
         if (type === 'cool') return '#3b82f6'; // Blue-500
-        return '#ef4444'; // Red-500 (Heat, Soak, Process)
+        if (type === 'process_hold') return '#eab308'; // Yellow-500 (Visual Hold / Indefinite)
+        return '#ef4444'; // Red-500 (Heat, Soak, Process, Mold Dry)
     };
 
     const getLabel = (type: string) => {

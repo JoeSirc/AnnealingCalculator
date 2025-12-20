@@ -21,6 +21,7 @@ function App() {
   // Clean Process Overrides
   const [processTemp, setProcessTemp] = useState<string>("");
   const [processHold, setProcessHold] = useState<string>("");
+  const [processHoldIndefinite, setProcessHoldIndefinite] = useState<boolean>(false);
   const [processRamp, setProcessRamp] = useState<string>("");
   const [moldDryHours, setMoldDryHours] = useState<string>("");
   const [moldDryTemp, setMoldDryTemp] = useState<string>("");
@@ -138,7 +139,8 @@ function App() {
         cProcessHold,
         cProcessRamp,
         cMoldDryHours,
-        cMoldDryTemp
+        cMoldDryTemp,
+        processHoldIndefinite
       );
       setResult(res);
       setChartVersion(v => v + 1);
@@ -198,7 +200,8 @@ function App() {
       cProcessHold,
       cProcessRamp,
       cMoldDryHours,
-      cMoldDryTemp
+      cMoldDryTemp,
+      processHoldIndefinite
     );
     setResult(res);
     setChartVersion(v => v + 1);
@@ -409,14 +412,39 @@ ${result.digitry_instructions}`;
               </div>
 
               <div>
-                <label>Hold Time (Mins)</label>
-                <input
-                  type="number"
-                  value={processHold}
-                  onChange={(e) => setProcessHold(e.target.value)}
-                  placeholder="Default (Auto)"
-                />
-                <small style={{ color: '#888' }}>Empty = Auto</small>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label>Hold Time</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'normal', margin: 0, color: '#eab308' }}>
+                    <input
+                      type="checkbox"
+                      checked={processHoldIndefinite}
+                      onChange={(e) => setProcessHoldIndefinite(e.target.checked)}
+                      style={{ width: 'auto', margin: 0 }}
+                    />
+                    Visual Check
+                  </label>
+                </div>
+                {!processHoldIndefinite ? (
+                  <>
+                    <input
+                      type="number"
+                      value={processHold}
+                      onChange={(e) => setProcessHold(e.target.value)}
+                      placeholder="Default (Auto)"
+                    />
+                    <small style={{ color: '#888' }}>Minutes</small>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      disabled
+                      value="Indefinite"
+                      style={{ cursor: 'not-allowed', color: '#666', borderColor: '#444' }}
+                    />
+                    <small style={{ color: '#eab308' }}>Hold until skipped</small>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -91,7 +91,7 @@ export interface AnnealingSchedulePoint {
     time: number; // Cumulative hours
     temp: number; // Fahrenheit
     label?: string;
-    segment_type: 'heat' | 'soak' | 'cool' | 'off' | 'process';
+    segment_type: 'heat' | 'soak' | 'cool' | 'off' | 'process' | 'process_hold';
 }
 
 export interface ScheduleResult {
@@ -113,7 +113,8 @@ export function calculateSchedule(
     customProcessHoldMins?: number,
     customProcessRamp?: number,
     moldDryHours?: number,
-    moldDryTemp?: number
+    moldDryTemp?: number,
+    processHoldIndefinite?: boolean
 ): ScheduleResult {
     // 1. Get Glass Properties
     const props = GLASS_LIBRARY[glassType];
@@ -161,6 +162,11 @@ export function calculateSchedule(
             else if (mode === "full_fuse") processHoldMins = 15;
             else if (mode === "cast") processHoldMins = 30; // Base, but often needs more for cast
         }
+    }
+
+    // Override hold if indefinite
+    if (processHoldIndefinite) {
+        processHoldMins = 0; // It takes "0 time" in the schedule plot calculation, effectively a pause point
     }
 
     // 2. Physics Calculation
@@ -259,7 +265,7 @@ export function calculateSchedule(
             points.push({ time: currentTime, temp: toOutputTemp(mdt), label: "Mold Dry Reach", segment_type: 'heat' });
 
             currentTime += moldDryHours;
-            points.push({ time: currentTime, temp: toOutputTemp(mdt), label: "Mold Dry Hold", segment_type: 'process' });
+            points.push({ time: currentTime, temp: toOutputTemp(mdt), label: "Mold Dry Hold", segment_type: 'process' }); // Revert to process (Red)
             currentStartTemp = mdt;
         }
 
@@ -272,7 +278,8 @@ export function calculateSchedule(
 
         // Hold
         currentTime += (processHoldMins / 60);
-        points.push({ time: currentTime, temp: toOutputTemp(processTemp), label: "Process Complete", segment_type: 'process' });
+        const holdLabel = processHoldIndefinite ? "Process Hold (Indefinite)" : "Process Complete";
+        points.push({ time: currentTime, temp: toOutputTemp(processTemp), label: holdLabel, segment_type: 'process_hold' }); // New specific type for Yellow
 
         // Crash Cool to Anneal
         // In physics model, crash cool is limited by "thermal shock of the kiln" usually lol, but glass can break if cooled too fast on surface. 
@@ -325,7 +332,10 @@ export function calculateSchedule(
         }
 
         sc = segCount++;
-        paragon += `SEG ${sc} (Process):\n  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(processTemp))}\n  HLD${sc}: ${generateTimeStr(Math.round(processHoldMins))}\n\n`;
+        sc = segCount++;
+        const holdStr = processHoldIndefinite ? "HOLD" : generateTimeStr(Math.round(processHoldMins));
+        const holdNote = processHoldIndefinite ? " (INDEFINITE HOLD)" : "";
+        paragon += `SEG ${sc} (Process):\n  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(processTemp))}\n  HLD${sc}: ${holdStr}${holdNote}\n\n`;
 
         sc = segCount++;
         paragon += `SEG ${sc} (Cool to Anneal):\n  RA${sc} : 9999\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
@@ -349,7 +359,11 @@ export function calculateSchedule(
     const schedulePoints = points.slice(1);
     schedulePoints.forEach((p) => {
         const pMins = Math.round(p.time * 60);
-        digitry += `STEP ${digitryStep++}: ${p.label}\n  TEMP: ${Math.round(p.temp)}${tempUnit}\n  TIME: ${generateTimeStr(pMins)}\n\n`;
+        let timeStr = generateTimeStr(pMins);
+        if (p.label?.includes("Indefinite")) {
+            timeStr += " (HOLD)";
+        }
+        digitry += `STEP ${digitryStep++}: ${p.label}\n  TEMP: ${Math.round(p.temp)}${tempUnit}\n  TIME: ${timeStr}\n\n`;
     });
 
     return {
