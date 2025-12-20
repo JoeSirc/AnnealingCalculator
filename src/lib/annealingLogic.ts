@@ -292,7 +292,8 @@ export function calculateSchedule(
 
     } else {
         // Ramp to Soak
-        const timeToSoak = (annealTemp - unloadTemp) / rampToProcessRate;
+        // Fixed 10 minute ramp for Anneal Only (load/stabilize)
+        const timeToSoak = 10 / 60;
         currentTime += timeToSoak;
         points.push({ time: currentTime, temp: toOutputTemp(annealTemp), label: "Reach Soak", segment_type: 'heat' });
     }
@@ -344,7 +345,7 @@ export function calculateSchedule(
         paragon += `SEG ${sc} (Cool to Anneal):\n  RA${sc} : 9999\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
     } else {
         sc = segCount++;
-        paragon += `SEG ${sc} (Ramp to Soak):\n  RA${sc} : ${Math.round(toRate(rampToProcessRate))}\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
+        paragon += `SEG ${sc} (Ramp to Soak):\n  RA${sc} : 9999\n  ${tempUnit}${sc} : ${Math.round(toOutputTemp(annealTemp))}\n  HLD${sc}: ${generateTimeStr(Math.round(annealSoakHours * 60))}\n\n`;
     }
 
     sc = segCount++;
