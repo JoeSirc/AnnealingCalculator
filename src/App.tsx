@@ -414,7 +414,7 @@ ${result.digitry_instructions}`;
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label>Hold Time</label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'normal', margin: 0, color: '#eab308' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 'normal', margin: 0 }}>
                     <input
                       type="checkbox"
                       checked={processHoldIndefinite}
@@ -442,7 +442,7 @@ ${result.digitry_instructions}`;
                       value="Indefinite"
                       style={{ cursor: 'not-allowed', color: '#666', borderColor: '#444' }}
                     />
-                    <small style={{ color: '#eab308' }}>Hold until skipped</small>
+                    <small style={{ color: '#888' }}>Hold until skipped</small>
                   </>
                 )}
               </div>
