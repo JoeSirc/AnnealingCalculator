@@ -45,8 +45,10 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
 
             // Calculate marker opacity to hide overlaps
             // If we are NOT the indefinite trace, hide our marker if it lands on an indefinite hold point
-            const markerOpacities = indices.map(idx => {
+            const markerOpacities = indices.map((idx, i) => {
                 if (isIndefiniteTrace) return 1;
+                // If it's the first point in a trace being shown in the legend, keep it visible for the legend icon
+                if (i === 0 && !legendsShown.has(name)) return 1;
                 // If the point acts as a junction for the hold, hide it so the Yellow point shows cleanly
                 if (points[idx].segment_type === 'process_hold') return 0;
                 return 1;
@@ -70,8 +72,9 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
             const nextPoint = points[i + 1];
             const nextType = nextPoint.segment_type;
             const nextColor = getColor(nextType);
+            const nextName = getLabel(nextType);
 
-            if (nextColor === currentColor) {
+            if (nextName === currentName) {
                 // Continue trace
                 currentX.push(nextPoint.time);
                 currentY.push(nextPoint.temp);
@@ -82,7 +85,7 @@ export const AnnealingChart: React.FC<AnnealingChartProps> = ({ points, units })
 
                 // Start new trace
                 currentColor = nextColor;
-                currentName = getLabel(nextType);
+                currentName = nextName;
                 currentX = [points[i].time, nextPoint.time];
                 currentY = [points[i].temp, nextPoint.temp];
                 currentIndices = [i, i + 1];
