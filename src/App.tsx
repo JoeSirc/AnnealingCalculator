@@ -556,7 +556,7 @@ ${result.digitry_instructions}`;
           <a className="footer-link" onClick={() => setShowInfo(true)}>Information</a>
           <a className="footer-link" onClick={() => setShowAbout(true)}>About</a>
         </div>
-        <p style={{ marginTop: '1rem' }}>Free and opensource. For educational purposes.</p>
+        <p style={{ marginTop: '1rem' }}>Free and open source. For educational purposes.</p>
       </footer>
 
       {showInfo && (
